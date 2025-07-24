@@ -23,6 +23,7 @@ Future<void> initializeService() async {
 
   await service.configure(
     androidConfiguration: AndroidConfiguration(
+      autoStartOnBoot: true,
       onStart: onStart,
       isForegroundMode: true,
       autoStart: false,

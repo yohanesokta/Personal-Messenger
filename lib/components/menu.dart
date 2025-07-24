@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'home.dart' as home;
 import 'chats.dart' as chats;
 
@@ -39,8 +40,8 @@ class _MenuState extends State<Menu> with SingleTickerProviderStateMixin {
         ),
         child: TabBar(
           tabs: [
-            Tab(icon: Icon(Icons.woman), text: "Berdua"),
-            Tab(icon: Icon(Icons.chat), text: "Chats"),
+            Tab(icon: Icon(FontAwesomeIcons.heartCircleBolt,size: 16,), text: "Berdua"),
+            Tab(icon: Icon(FontAwesomeIcons.solidMessage,size: 16,), text: "Chats"),
           ],
           controller: controller,
         ),

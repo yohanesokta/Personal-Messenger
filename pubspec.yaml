@@ -43,6 +43,7 @@ dependencies:
   provider: ^6.1.5
   device_info_plus: ^11.5.0
   flutter_inappwebview: ^6.1.5
+  font_awesome_flutter: ^10.8.0
 
 dev_dependencies:
   flutter_test:

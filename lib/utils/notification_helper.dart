@@ -46,7 +46,7 @@ class NotificationHelper {
       channelDescription: _channel.description,
       importance: _channel.importance,
       priority: Priority.high,
-      showWhen: true,
+      showWhen: false,
       playSound: true,
     ));
 

@@ -12,6 +12,7 @@ import 'utils/notification_helper.dart';
 import 'package:provider/provider.dart';
 import 'context.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import "components/key_saver.dart" as key_server;
 
 Future<String> getDeviceId() async {
   final info = DeviceInfoPlugin();
@@ -19,25 +20,47 @@ Future<String> getDeviceId() async {
   return android.model ?? 'unknown-device';
 }
 
+Future<void> requestAllPermissions() async {
+  Map<Permission, PermissionStatus> statuses = await [
+    Permission.notification,
+    Permission.camera,
+    Permission.microphone,
+    Permission.storage,
+    Permission.photos,
+    Permission.videos,
+    Permission.mediaLibrary,
+    Permission.ignoreBatteryOptimizations,
+  ].request();
+
+  statuses.forEach((perm, status) {
+    print('Permission $perm: $status');
+  });
+}
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  late ContextService contextService;
+  try {
+    await Permission.notification.isDenied.then((value) {
+      if (value) {
+        Permission.notification.request();
+      }
+    });
+    await requestAllPermissions();
+    await NotificationHelper.initialize();
 
-  await Permission.notification.isDenied.then((value) {
-    if (value) {
-      Permission.notification.request();
-    }
-  });
+    await NotificationHelper.createNotificationChannel();
 
-  await NotificationHelper.initialize();
+    await initializeService();
 
-  await NotificationHelper.createNotificationChannel();
+    final myDeviceId = await getDeviceId();
+    contextService = ContextService(myDeviceId: myDeviceId);
+    await contextService.loadFromAPI();
+  } catch (error) {
+    debugPrint(error.toString());
+  }
 
-  await initializeService();
-
-  final myDeviceId = await getDeviceId();
-  final contextService = ContextService(myDeviceId: myDeviceId);
-  await contextService.loadFromAPI();
 
   FlutterBackgroundService().on("message").listen((event) {
     contextService.loadFromAPI();
@@ -64,6 +87,7 @@ class MyApp extends StatelessWidget {
         "/settings" : (BuildContext context) => Settings(),
         "/remotecam" : (BuildContext context) => VideoCallView(webRtcUrl: "https://webrtc.yohanes.dpdns.org/cam",),
         "/remotecall" : (BuildContext context) => VideoCallView(webRtcUrl: "https://webrtc.yohanes.dpdns.org/call",),
+        "/keysaver" : (BuildContext context) => key_server.View(),
       },
     );
   }

@@ -318,7 +318,7 @@ class ChatBubble extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             (isSending) ? Text(
-              "⌛ Mengirim",
+              "🕟",
               style: TextStyle(
                 fontSize: 11,
                 color: const Color.fromARGB(255, 255, 255, 255).withOpacity(1),
