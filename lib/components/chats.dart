@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import '../interface/chat_message.dart';
 import 'dart:io';
@@ -76,7 +77,7 @@ class _ChatsState extends State<Chats> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 190, 226, 255),
+        backgroundColor: const Color.fromARGB(255, 232, 239, 246),
         elevation: 1,
         leading: const Padding(
           padding: EdgeInsets.all(8.0),
@@ -103,21 +104,22 @@ class _ChatsState extends State<Chats> {
             onPressed: () {
               Navigator.pushNamed(context, "/remotecam");
             },
-            icon: const Icon(Icons.videocam_outlined, color: Color.fromARGB(255, 56, 56, 56)),
+            icon: const Icon(FontAwesomeIcons.video, color: Color.fromARGB(
+                255, 25, 30, 89),size: 16,),
           ),
 
           IconButton(
             onPressed: () {
               Navigator.pushNamed(context, "/remotecall");
             },
-            icon: const Icon(Icons.call, color: Color.fromARGB(255, 56, 56, 56)),
+            icon: const Icon(FontAwesomeIcons.phone, color: Color.fromARGB(255, 25, 30, 89),size: 16,),
           ),
 
           IconButton(
             onPressed: () {
               Navigator.pushNamed(context, "/services");
             },
-            icon: const Icon(Icons.more_vert, color: Color.fromARGB(255, 56, 56, 56)),
+            icon: const Icon(Icons.more_vert, color: Color.fromARGB(255, 25, 30, 89)),
           ),
         ],
       ),
@@ -317,13 +319,7 @@ class ChatBubble extends StatelessWidget {
               style: const TextStyle(fontSize: 15, color: Color.fromARGB(221, 255, 255, 255)),
             ),
             const SizedBox(height: 4),
-            (isSending) ? Text(
-              "🕟",
-              style: TextStyle(
-                fontSize: 11,
-                color: const Color.fromARGB(255, 255, 255, 255).withOpacity(1),
-              ),
-            ) : Text(
+            (isSending) ? Icon(FontAwesomeIcons.clock,size: 10,weight: 800,color: Colors.white,) : Text(
               time,
               style: TextStyle(
                 fontSize: 11,

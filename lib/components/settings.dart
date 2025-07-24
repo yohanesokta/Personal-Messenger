@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Settings extends StatefulWidget {
@@ -10,73 +10,150 @@ class Settings extends StatefulWidget {
 }
 
 class _SettingsState extends State<Settings> {
-  var pin_input = TextEditingController();
+  final TextEditingController _pinInputController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  Future<void> _writepindata() async {
+  Future<void> _writePinData() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString("pins", pin_input.text);
+      await prefs.setString("pins", _pinInputController.text);
+
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("pin berhasil di ganti"),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text(
+            "PIN berhasil diperbarui!",
+            style: GoogleFonts.poppins(color: Colors.white),
+          ),
+          backgroundColor: Colors.green.shade600,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          duration: const Duration(seconds: 2),
         ),
       );
       Navigator.pop(context, true);
     } catch (error) {
-      print(error);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Terjadi kesalahan: $error"),
+          backgroundColor: Colors.red.shade600,
+        ),
+      );
     }
   }
 
   @override
+  void dispose() {
+    _pinInputController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final Color primaryColor = Color(0xFF4A4E69);
+    final Color secondaryTextColor = Color(0xFF6b7280);
+    final Color backgroundColor = Color(0xFFF9FAFB);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Setting')),
-      body: Container(
-        padding: EdgeInsets.symmetric(horizontal: 30, vertical: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          spacing: 10,
+      backgroundColor: backgroundColor,
+      appBar: AppBar(
+        title: Text(
+          'Pengaturan',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+            color: primaryColor,
+          ),
+        ),
+        centerTitle: false,
+        backgroundColor: backgroundColor,
+        elevation: 0,
+        iconTheme: IconThemeData(color: primaryColor),
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           children: [
             Text(
-              "Ubah PIN",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            Padding(
-              padding: EdgeInsets.only(bottom: 20),
-              child: Text(
-                "Ubah pin dengan pin baru. pastikan selalu mengingat pin karena tidak bisa reset jika lupa dan harus menghapus data!",
-                style: TextStyle(color: Colors.grey),
+              "Ubah PIN Keamanan",
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: primaryColor,
               ),
             ),
-            TextField(
-              controller: pin_input,
+            const SizedBox(height: 10),
+            Text(
+              "Pastikan untuk selalu mengingat PIN baru Anda. PIN yang terlupa tidak dapat dipulihkan.",
+              style: GoogleFonts.poppins(
+                color: secondaryTextColor,
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 40),
+            TextFormField(
+              controller: _pinInputController,
               obscureText: true,
-              obscuringCharacter: "*",
-              keyboardType: TextInputType.numberWithOptions(decimal: false),
+              obscuringCharacter: "●",
+              keyboardType: TextInputType.number,
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
               decoration: InputDecoration(
-                label: Text("Massukan Pin Baru"),
-                fillColor: Colors.blue,
-                focusColor: Colors.blue,
-                hintText: "Contohe ngene 1234",
-                border: OutlineInputBorder(),
-                suffix: Icon(Icons.lock, size: 18, color: Colors.grey),
-              ),
-            ),
-            TextButton(
-              onPressed: _writepindata,
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.blue,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(5),
+                labelText: "Masukkan 4 digit PIN baru",
+                labelStyle: GoogleFonts.poppins(color: secondaryTextColor),
+                filled: true,
+                fillColor: Colors.white,
+                prefixIcon: Icon(
+                  Icons.lock_outline_rounded,
+                  color: secondaryTextColor,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: primaryColor, width: 2),
                 ),
               ),
-              child: SizedBox(
-                width: double.infinity,
-                child: Container(
-                  alignment: Alignment.center,
-                  child: Text("Simpan", style: TextStyle(color: Colors.white)),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'PIN tidak boleh kosong';
+                }
+                if (value.length != 4) {
+                  return 'PIN harus terdiri dari 4 digit';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: _writePinData,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 56),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+                shadowColor: primaryColor.withOpacity(0.4),
+              ),
+              child: Text(
+                "Simpan Perubahan",
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
                 ),
               ),
             ),

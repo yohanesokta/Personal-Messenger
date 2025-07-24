@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
+// Class Password tidak berubah
 class Password {
   final int id;
   final String provider;
@@ -43,6 +44,7 @@ class _ViewState extends State<View> {
     futurePasswords = fetchPasswords();
   }
 
+  // Fungsi fetchPasswords tidak berubah
   Future<List<Password>> fetchPasswords() async {
     final response = await http.post(
       Uri.parse("https://password-manager-liart-mu.vercel.app/get"),
@@ -59,6 +61,13 @@ class _ViewState extends State<View> {
     }
   }
 
+  void _refreshPasswords() {
+    setState(() {
+      futurePasswords = fetchPasswords();
+    });
+  }
+
+  // Fungsi _getProviderIcon tidak berubah
   Widget _getProviderIcon(String provider) {
     IconData icon;
     Color color;
@@ -73,7 +82,7 @@ class _ViewState extends State<View> {
         icon = FontAwesomeIcons.instagram;
         color = Colors.purpleAccent;
         break;
-      case "shoope": // Nama provider disesuaikan
+      case "shoope":
         icon = FontAwesomeIcons.cartShopping;
         color = Colors.orangeAccent;
         break;
@@ -100,53 +109,169 @@ class _ViewState extends State<View> {
     );
   }
 
-  void _addpassword() {
+  // --- IMPLEMENTASI FITUR TAMBAH PASSWORD ---
+  void _addPassword() {
+    final _providerController = TextEditingController();
+    final _usernameController = TextEditingController();
+    final _passwordController = TextEditingController();
+    final _formKey = GlobalKey<FormState>();
+
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 50,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey,
-                  borderRadius: BorderRadius.circular(10),
-                ),
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(width: 50, height: 5, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10))),
+                  const SizedBox(height: 20),
+                  const Text("Tambah Akun Baru", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _providerController,
+                    decoration: _inputDecoration("Provider (e.g., Google)"),
+                    validator: (value) => value!.isEmpty ? 'Provider tidak boleh kosong' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _usernameController,
+                    decoration: _inputDecoration("Username atau Email"),
+                    validator: (value) => value!.isEmpty ? 'Username tidak boleh kosong' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _passwordController,
+                    decoration: _inputDecoration("Password"),
+                    obscureText: true,
+                    validator: (value) => value!.isEmpty ? 'Password tidak boleh kosong' : null,
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.cyan,
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      if (_formKey.currentState!.validate()) {
+                        _performAddPassword(
+                          _providerController.text,
+                          _usernameController.text,
+                          _passwordController.text,
+                        );
+                      }
+                    },
+                    child: const Text("Simpan", style: TextStyle(fontSize: 16, color: Colors.white)),
+                  ),
+                ],
               ),
-              const SizedBox(height: 30),
-              const FaIcon(FontAwesomeIcons.gears, color: Colors.cyan, size: 40),
-              const SizedBox(height: 20),
-              const Text(
-                "Fitur Belum Tersedia",
-                style: TextStyle(
-                  color: Colors.black87,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                "Sabar ya, fitur ini sedang dalam pengembangan! 👨‍💻",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.black54, fontSize: 16),
-              ),
-              const SizedBox(height: 20),
-            ],
+            ),
           ),
         );
       },
     );
   }
 
+  Future<void> _performAddPassword(String provider, String username, String password) async {
+    final response = await http.post(
+      Uri.parse("https://password-manager-liart-mu.vercel.app/add"),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'provider': provider,
+        'username': username,
+        'password': password,
+      },
+
+    );
+
+    if (mounted) {
+      Navigator.pop(context); // Tutup bottom sheet
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Akun berhasil ditambahkan!'), backgroundColor: Colors.green),
+        );
+        _refreshPasswords(); // Muat ulang data
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal menambahkan akun.'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // --- IMPLEMENTASI FITUR HAPUS PASSWORD ---
+  void _deletePassword(int id) {
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text('Konfirmasi Hapus'),
+          content: const Text('Apakah Anda yakin ingin menghapus akun ini? Tindakan ini tidak dapat dibatalkan.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Batal'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop(); // Tutup dialog konfirmasi
+                _performDeletePassword(id);
+              },
+              child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _performDeletePassword(int id) async {
+    final response = await http.post(
+      Uri.parse("https://password-manager-liart-mu.vercel.app/delete"),
+      headers: <String, String>{
+        'id': id.toString(),
+      },
+    );
+
+    if (mounted) {
+      Navigator.pop(context); // Tutup bottom sheet detail
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Akun berhasil dihapus!'), backgroundColor: Colors.green),
+        );
+        _refreshPasswords(); // Muat ulang data
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal menghapus akun.'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: Colors.grey[100],
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+    );
+  }
+
+  // Build method tidak berubah
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -161,7 +286,7 @@ class _ViewState extends State<View> {
         ),
         actions: [
           IconButton(
-            onPressed: _addpassword,
+            onPressed: _addPassword,
             icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.black87, size: 28),
           ),
           const SizedBox(width: 10),
@@ -246,6 +371,7 @@ class _ViewState extends State<View> {
     );
   }
 
+  // Method _showPasswordDetails diupdate untuk memanggil fungsi delete
   void _showPasswordDetails(BuildContext context, Password currentPassword) {
     showModalBottomSheet(
       context: context,
@@ -293,7 +419,8 @@ class _ViewState extends State<View> {
                         IconButton(
                           icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 28),
                           onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fitur hapus belum siap.')));
+                            // Panggil fungsi hapus dengan konfirmasi
+                            _deletePassword(currentPassword.id);
                           },
                         ),
                       ],
@@ -350,6 +477,7 @@ class _ViewState extends State<View> {
     );
   }
 
+  // Method _buildTextField tidak berubah
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
