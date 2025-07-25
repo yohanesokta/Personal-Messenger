@@ -1,15 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:device_info_plus/device_info_plus.dart';
-
 import 'notification_helper.dart';
-
-const String socketUrl = 'https://webrtc.yohanes.dpdns.org';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<String> getDeviceId() async {
   final info = DeviceInfoPlugin();
@@ -27,6 +25,9 @@ Future<void> initializeService() async {
       onStart: onStart,
       isForegroundMode: true,
       autoStart: false,
+      foregroundServiceTypes: [
+        AndroidForegroundType.dataSync,
+      ],
       notificationChannelId: 'background_socket_channel',
       initialNotificationTitle: 'Background Service',
       initialNotificationContent: 'Menunggu koneksi socket...',
@@ -40,23 +41,23 @@ Future<void> initializeService() async {
 void onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
   await NotificationHelper.initialize();
-
+  await dotenv.load(fileName: '.env');
   late IO.Socket socket;
   final myDeviceId = await getDeviceId();
-
-  // Fungsi untuk menghubungkan ke socket
+  if (service is AndroidServiceInstance) {
+    print("ANJAYYYYYYYYYYY FORGROUND!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    service.setAsForegroundService();
+  }
   void connectToSocket() {
-    // Inisialisasi Socket.IO
-    socket = IO.io(socketUrl, <String, dynamic>{
+    socket = IO.io(dotenv.env['SOCKET_URL'], <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false,
     });
 
-    // Handler untuk event 'connect'
     socket.onConnect((_) {
       debugPrint('SOCKET CONNECTED: ${socket.id}');
       NotificationHelper.showNotification(title: "Koneksi",
-          body: "Koneksi Berhasil Sekali"
+          body: "Koneksi Berhasil Dilakukan."
       );
       service.invoke(
         'update',
@@ -66,7 +67,6 @@ void onStart(ServiceInstance service) async {
       );
     });
 
-    // Handler utama untuk event 'message'
     socket.on('message', (data) {
       final messages = jsonDecode(data.toString()) as Map<String, dynamic>;
         if (messages["device_id"] != myDeviceId) {
@@ -80,6 +80,9 @@ void onStart(ServiceInstance service) async {
 
     socket.onDisconnect((_) {
       debugPrint('SOCKET DISCONNECTED');
+      NotificationHelper.showNotification(title: "Koneksi",
+          body: "Memeriksa Pesan Baru.."
+      );
       service.invoke(
         'update',
         {
@@ -92,14 +95,11 @@ void onStart(ServiceInstance service) async {
       debugPrint('SOCKET ERROR: $error');
     });
 
-    // Mulai koneksi
     socket.connect();
   }
 
-  // Mulai koneksi saat service dijalankan
   connectToSocket();
 
-  // Dengarkan event 'stopService' dari UI
   service.on('stopService').listen((event) {
     socket.disconnect();
     socket.dispose();

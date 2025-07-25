@@ -1,15 +1,12 @@
-// lib/notification_helper.dart
-
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationHelper {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
   static int _notificationId = 0;
 
-  // Definisikan detail channel di sini agar bisa digunakan bersama
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
-    'background_socket_channel', // ID Channel (HARUS SAMA dengan di background_service.dart)
-    'Background Socket Service',   // Nama Channel
+    'background_socket_channel',
+    'Background Socket Service',
     description: 'Channel for background socket notifications',
     importance: Importance.max,
     playSound: true,
@@ -26,9 +23,7 @@ class NotificationHelper {
     await _notificationsPlugin.initialize(initializationSettings);
   }
 
-  // !! FUNGSI BARU UNTUK MEMBUAT CHANNEL !!
   static Future<void> createNotificationChannel() async {
-    // Pastikan hanya berjalan di Android
     final anp = _notificationsPlugin
         .resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
@@ -41,7 +36,7 @@ class NotificationHelper {
   }) async {
     final NotificationDetails platformChannelSpecifics =
     NotificationDetails(android: AndroidNotificationDetails(
-      _channel.id, // Gunakan ID channel yang sudah dibuat
+      _channel.id,
       _channel.name,
       channelDescription: _channel.description,
       importance: _channel.importance,

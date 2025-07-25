@@ -12,13 +12,12 @@ class ContextService extends ChangeNotifier {
   static const String _storageKey = 'chat_messages';
 
   ContextService({required this.myDeviceId}) {
-    _init(); // Auto fetch saat inisialisasi
+    _init();
   }
 
   Future<void> _init() async {
     await _loadMessagesFromStorage();
 
-    // Hanya fetch API kalau data kosong
     if (_chats.isEmpty) {
       await loadFromAPI();
     }

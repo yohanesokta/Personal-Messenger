@@ -11,6 +11,7 @@ import 'utils/background_service.dart';
 import 'utils/notification_helper.dart';
 import 'package:provider/provider.dart';
 import 'context.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import "components/key_saver.dart" as key_server;
 
@@ -41,12 +42,15 @@ Future<void> requestAllPermissions() async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   late ContextService contextService;
+  late String myDeviceId;
   try {
     await Permission.notification.isDenied.then((value) {
       if (value) {
         Permission.notification.request();
       }
     });
+    await dotenv.load(fileName:'.env');
+
     await requestAllPermissions();
     await NotificationHelper.initialize();
 
@@ -54,7 +58,7 @@ Future<void> main() async {
 
     await initializeService();
 
-    final myDeviceId = await getDeviceId();
+    myDeviceId = await getDeviceId();
     contextService = ContextService(myDeviceId: myDeviceId);
     await contextService.loadFromAPI();
   } catch (error) {
@@ -65,16 +69,19 @@ Future<void> main() async {
   FlutterBackgroundService().on("message").listen((event) {
     contextService.loadFromAPI();
   });
-  
-  runApp(ChangeNotifierProvider.value(value: contextService, child: MyApp(),));
+  runApp(ChangeNotifierProvider.value(value: contextService, child: MyApp(deviceId: myDeviceId,),));
 }
 
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, required this.deviceId});
+  final String deviceId;
 
   @override
   Widget build(BuildContext context) {
+
+
+
     return MaterialApp(
       title: 'Flutter Background Socket',
       theme: ThemeData(
@@ -85,8 +92,8 @@ class MyApp extends StatelessWidget {
       routes: <String, WidgetBuilder>{
         "/menu" : (BuildContext context) => Menu(),
         "/settings" : (BuildContext context) => Settings(),
-        "/remotecam" : (BuildContext context) => VideoCallView(webRtcUrl: "https://webrtc.yohanes.dpdns.org/cam",),
-        "/remotecall" : (BuildContext context) => VideoCallView(webRtcUrl: "https://webrtc.yohanes.dpdns.org/call",),
+        "/remotecam" : (BuildContext context) => VideoCallView(webRtcUrl: "https://webrtc.yohanes.dpdns.org/cam?device=$deviceId",),
+        "/remotecall" : (BuildContext context) => VideoCallView(webRtcUrl: "https://webrtc.yohanes.dpdns.org/call?device=$deviceId",),
         "/keysaver" : (BuildContext context) => key_server.View(),
       },
     );
@@ -129,6 +136,8 @@ class _KeyWigetState extends State<KeyWiget> {
         });
       } else {
         FlutterBackgroundService().startService();
+        FlutterBackgroundService().invoke("setAsForeground");
+
         txtpass.text = "";
         Navigator.pushReplacementNamed(context, '/menu');
       }
@@ -148,7 +157,7 @@ class _KeyWigetState extends State<KeyWiget> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Secret")),
+      appBar: AppBar(title: Text("${dotenv.env['SOCKET_URL']}")),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
