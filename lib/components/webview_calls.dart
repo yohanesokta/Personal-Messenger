@@ -2,13 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'dart:ui';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class VideoCallView extends StatefulWidget {
-  final String webRtcUrl;
-
+  final String? webRtcUrl;
   const VideoCallView({
     super.key,
-    this.webRtcUrl = "https://webrtc.yohanes.dpdns.org/2"
+    this.webRtcUrl
   });
 
   @override
@@ -75,7 +75,7 @@ class _VideoCallViewState extends State<VideoCallView> {
         alignment: Alignment.center,
         children: [
           InAppWebView(
-            initialUrlRequest: URLRequest(url: WebUri(widget.webRtcUrl)),
+            initialUrlRequest: URLRequest(url: WebUri(widget.webRtcUrl!)),
             initialSettings: InAppWebViewSettings(
               mediaPlaybackRequiresUserGesture: false,
               allowsInlineMediaPlayback: true,

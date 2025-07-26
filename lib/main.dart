@@ -69,13 +69,15 @@ Future<void> main() async {
   FlutterBackgroundService().on("message").listen((event) {
     contextService.loadFromAPI();
   });
-  runApp(ChangeNotifierProvider.value(value: contextService, child: MyApp(deviceId: myDeviceId,),));
+  final webrtcUrl = dotenv.env['SOCKET_URL']!;
+  runApp(ChangeNotifierProvider.value(value: contextService, child: MyApp(deviceId: myDeviceId,webrtcUrl: webrtcUrl,),));
 }
 
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key, required this.deviceId});
+  const MyApp({super.key, required this.deviceId, required this.webrtcUrl});
   final String deviceId;
+  final String webrtcUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -92,8 +94,8 @@ class MyApp extends StatelessWidget {
       routes: <String, WidgetBuilder>{
         "/menu" : (BuildContext context) => Menu(),
         "/settings" : (BuildContext context) => Settings(),
-        "/remotecam" : (BuildContext context) => VideoCallView(webRtcUrl: "https://webrtc.yohanes.dpdns.org/cam?device=$deviceId",),
-        "/remotecall" : (BuildContext context) => VideoCallView(webRtcUrl: "https://webrtc.yohanes.dpdns.org/call?device=$deviceId",),
+        "/remotecam" : (BuildContext context) => VideoCallView(webRtcUrl: "$webrtcUrl/cam?device=$deviceId",),
+        "/remotecall" : (BuildContext context) => VideoCallView(webRtcUrl: "$webrtcUrl/call?device=$deviceId",),
         "/keysaver" : (BuildContext context) => key_server.View(),
       },
     );
@@ -110,16 +112,14 @@ class KeyWiget extends StatefulWidget {
 class _KeyWigetState extends State<KeyWiget> {
   bool _failPass = false;
   var txtpass = TextEditingController();
-
   String password_text = "12345";
-
+  
   void _initialize_password() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? pins = prefs.getString("pins");
     if (pins != null) {
       password_text = pins.toString();
     }
-    print(password_text);
   }
 
   bool checkPass(value) {

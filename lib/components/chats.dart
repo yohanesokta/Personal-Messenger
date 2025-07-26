@@ -2,9 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import '../interface/chat_message.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 
@@ -58,8 +60,8 @@ class _ChatsState extends State<Chats> {
       ),
     ); // Gunakan ContextService
     _controller.clear();
-
-    final res = await http.post(Uri.parse("https://webrtc.yohanes.dpdns.org/message/send"),
+    await dotenv.load(fileName: '.env');
+    final res = await http.post(Uri.parse("${dotenv.env['SOCKET_URL']}/message/send"),
         headers: <String, String> {
           "Content-Type" : "application/json; charset=UTF-8"
         },

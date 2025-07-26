@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'interface/chat_message.dart';
 
 class ContextService extends ChangeNotifier {
@@ -47,8 +48,9 @@ class ContextService extends ChangeNotifier {
   }
 
   Future<void> loadFromAPI() async {
+    await dotenv.load(fileName: ".env");
     try {
-      final res = await http.post(Uri.parse("https://webrtc.yohanes.dpdns.org/message"));
+      final res = await http.post(Uri.parse("${dotenv.env['SOCKET_URL']}/message"));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as List;
         _chats.clear();

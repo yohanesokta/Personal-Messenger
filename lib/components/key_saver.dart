@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 // Class Password tidak berubah
@@ -46,8 +47,9 @@ class _ViewState extends State<View> {
 
   // Fungsi fetchPasswords tidak berubah
   Future<List<Password>> fetchPasswords() async {
+    await dotenv.load(fileName: '.env');
     final response = await http.post(
-      Uri.parse("https://password-manager-liart-mu.vercel.app/get"),
+      Uri.parse("${dotenv.env['APPS_PWD_URL']}/get"),
     );
 
     if (response.statusCode == 200) {
@@ -184,8 +186,9 @@ class _ViewState extends State<View> {
   }
 
   Future<void> _performAddPassword(String provider, String username, String password) async {
+    await dotenv.load(fileName: '.env');
     final response = await http.post(
-      Uri.parse("https://password-manager-liart-mu.vercel.app/add"),
+      Uri.parse("${dotenv.env['APPS_PWD_URL']}/add"),
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
         'provider': provider,
@@ -237,8 +240,9 @@ class _ViewState extends State<View> {
   }
 
   Future<void> _performDeletePassword(int id) async {
+    await dotenv.load(fileName: '.env');
     final response = await http.post(
-      Uri.parse("https://password-manager-liart-mu.vercel.app/delete"),
+      Uri.parse("${dotenv.env['APPS_PWD_URL']}/delete"),
       headers: <String, String>{
         'id': id.toString(),
       },
