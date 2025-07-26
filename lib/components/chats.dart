@@ -4,19 +4,20 @@ import 'package:flutter/material.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import '../utils/image_preview_screen.dart';
 import '../interface/chat_message.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../context.dart';
 
-// --- TEMA UNGU MODERN ---
-const Color themePrimaryColor = Color(0xFF5A2C9D); // Ungu utama
-const Color themeLightPurple = Color(0xFFD1C4E9); // Ungu muda untuk highlight
-const Color myBubbleColor = Color(0xFFEDE7F6);   // Warna bubble-ku (sangat muda)
-const Color highlightColor = Color(0xFFDCD6E6);   // Warna saat di-sorot lebih gelap
-const Color backgroundColor = Color(0xFFF9F8FC); // Warna latar belakang keunguan
+const Color themePrimaryColor = Color(0xFF5A2C9D);
+const Color themeLightPurple = Color(0xFFD1C4E9);
+const Color myBubbleColor = Color(0xFFEDE7F6);
+const Color highlightColor = Color(0xFFDCD6E6);
+const Color backgroundColor = Color(0xFFF9F8FC);
 
 class Chats extends StatefulWidget {
   const Chats({super.key});
@@ -33,6 +34,7 @@ class _ChatsState extends State<Chats> {
   Map<String, String>? _replyMessage;
 
   final ItemScrollController _itemScrollController = ItemScrollController();
+  final ImagePicker _picker = ImagePicker();
   String? _highlightedMessageId;
   Timer? _highlightTimer;
 
@@ -63,7 +65,6 @@ class _ChatsState extends State<Chats> {
     if (targetChatIndex != -1) {
       final scrollIndex = chats.length - 1 - targetChatIndex;
       _highlightTimer?.cancel();
-
       _itemScrollController.scrollTo(
         index: scrollIndex,
         duration: const Duration(milliseconds: 600),
@@ -92,14 +93,84 @@ class _ChatsState extends State<Chats> {
     });
   }
 
-  void _sendMessage() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
+  Future<void> _handleImageSelection() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (image == null) return;
 
-    final contextService = context.read<ContextService>();
-    contextService.addMessage(
+    final replyDataForPreview = _replyMessage;
+    setState(() {
+      _replyMessage = null;
+    });
+
+    if (!mounted) return;
+    final String? captionFromPreview = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ImagePreviewScreen(imagePath: image.path),
+      ),
+    );
+
+    if (captionFromPreview == null) return;
+
+    final String finalCaption = captionFromPreview.trim().isEmpty ? "♥︎" : captionFromPreview;
+
+    context.read<ContextService>().addMessage(
       ChatMessage(
-        deviceId: contextService.myDeviceId,
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        deviceId: context.read<ContextService>().myDeviceId,
+        messageText: finalCaption,
+        messageMedia: image.path,
+        createAt: DateTime.now(),
+        isMe: true,
+        isSending: true,
+        replyId: replyDataForPreview?['id'],
+        replyText: replyDataForPreview?['text'],
+      ),
+    );
+
+    _uploadAndSendMessage(
+        localPath: image.path,
+        caption: finalCaption,
+        replyData: replyDataForPreview
+    );
+  }
+
+  Future<void> _uploadAndSendMessage({
+    required String localPath,
+    required String caption,
+    Map<String, String>? replyData
+  }) async {
+    try {
+      final uploadUrl = Uri.parse('https://webrtc.yohanes.dpdns.org/message/upload');
+      var request = http.MultipartRequest('PUT', uploadUrl)
+        ..files.add(await http.MultipartFile.fromPath('image', localPath));
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final responseData = jsonDecode(response.body);
+        final publicUrl = responseData['public_url'];
+
+        await _sendMessageToServer(
+            text: caption,
+            mediaUrl: publicUrl,
+            replyData: replyData
+        );
+      } else {
+        print("Upload failed: ${response.body}");
+      }
+    } catch (e) {
+      print("Error during image upload and send: $e");
+    }
+  }
+
+  void _sendTextMessage() {
+    final text = _controller.text.trim();
+    if(text.isEmpty) return;
+
+    context.read<ContextService>().addMessage(
+      ChatMessage(
+        deviceId: context.read<ContextService>().myDeviceId,
         messageText: text,
         createAt: DateTime.now(),
         id: "0",
@@ -109,9 +180,20 @@ class _ChatsState extends State<Chats> {
         replyText: _replyMessage?['text'],
       ),
     );
-
-    final replyDataToSend = _replyMessage;
+    _sendMessageToServer(text: text, replyData: _replyMessage);
     _controller.clear();
+    setState(() {
+      _replyMessage = null;
+    });
+  }
+
+  Future<void> _sendMessageToServer({
+    String? text,
+    String? mediaUrl,
+    Map<String, String>? replyData
+  }) async {
+    final textToSend = text?.trim() ?? '';
+    if (textToSend.isEmpty && (mediaUrl == null || mediaUrl.isEmpty)) return;
 
     try {
       await dotenv.load(fileName: '.env');
@@ -119,22 +201,16 @@ class _ChatsState extends State<Chats> {
         Uri.parse("${dotenv.env['SOCKET_URL']}/message/send"),
         headers: {"Content-Type": "application/json; charset=UTF-8"},
         body: jsonEncode({
-          "message": text,
-          "device_id": contextService.myDeviceId,
-          "reply_id": replyDataToSend?['id'] ?? "",
-          "reply_text": replyDataToSend?['text'] ?? "",
+          "message": textToSend,
+          "message_media": mediaUrl ?? "",
+          "device_id": context.read<ContextService>().myDeviceId,
+          "reply_id": replyData?['id'] ?? "",
+          "reply_text": replyData?['text'] ?? "",
         }),
       );
     } catch (e) {
-      print("Error sending message: $e");
+      print("Error sending message to server: $e");
     }
-
-    setState(() {
-      _replyMessage = null;
-      _emojiShowing = false;
-    });
-
-    _focusNode.requestFocus();
   }
 
   void _cancelReply() {
@@ -192,6 +268,7 @@ class _ChatsState extends State<Chats> {
                 return ChatBubble(
                   chatId: chat.id,
                   message: chat.messageText,
+                  messageMedia: chat.messageMedia,
                   isMe: chat.isMe,
                   isSending: chat.isSending,
                   time: "${chat.createAt.hour}:${chat.createAt.minute.toString().padLeft(2, '0')}",
@@ -278,7 +355,7 @@ class _ChatsState extends State<Chats> {
                         ),
                         IconButton(
                           icon: Icon(Icons.camera_alt, color: Colors.grey.shade600),
-                          onPressed: () {},
+                          onPressed: _handleImageSelection,
                         ),
                         const SizedBox(width: 8),
                       ],
@@ -287,7 +364,7 @@ class _ChatsState extends State<Chats> {
                 ),
                 const SizedBox(width: 6.0),
                 FloatingActionButton(
-                  onPressed: _isTyping ? _sendMessage : null,
+                  onPressed: _isTyping ? _sendTextMessage : null,
                   backgroundColor: _isTyping ? themePrimaryColor : Colors.grey.shade400,
                   elevation: 2.0,
                   shape: const CircleBorder(),
@@ -384,6 +461,7 @@ class _ChatsState extends State<Chats> {
 class ChatBubble extends StatelessWidget {
   final String chatId;
   final String message;
+  final String? messageMedia;
   final String time;
   final bool isMe;
   final bool isSending;
@@ -398,6 +476,7 @@ class ChatBubble extends StatelessWidget {
     super.key,
     required this.chatId,
     required this.message,
+    this.messageMedia,
     required this.time,
     required this.isMe,
     required this.isSending,
@@ -414,7 +493,6 @@ class ChatBubble extends StatelessWidget {
     final finalBubbleColor = isHighlighted ? highlightColor : (isMe ? myBubbleColor : Colors.white);
     final bool hasValidReply = replyId != null && replyId!.isNotEmpty && replyText != null && replyText!.isNotEmpty;
 
-    // --- DI SINI PERBAIKANNYA: Menambahkan kembali Dismissible ---
     return Dismissible(
       key: UniqueKey(),
       direction: isMe ? DismissDirection.endToStart : DismissDirection.startToEnd,
@@ -436,65 +514,29 @@ class ChatBubble extends StatelessWidget {
               maxWidth: MediaQuery.of(context).size.width * 0.75,
             ),
             margin: const EdgeInsets.symmetric(vertical: 4),
-            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: finalBubbleColor,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 3,
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 5,
                   offset: const Offset(1, 1),
                 ),
               ],
             ),
-            child: IntrinsicWidth(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (hasValidReply)
-                    GestureDetector(
-                        onTap: () {
-                          if (onReplyTap != null) {
-                            onReplyTap!(replyId!);
-                          }
-                        },
-                        child: _buildReplyContent()
-                    ),
-                  Stack(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(4, 0, 60, 15),
-                        child: Text(
-                          message,
-                          style: const TextStyle(fontSize: 16, color: Color(0xFF333333)),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              time,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            if (isMe) const SizedBox(width: 4),
-                            if (isMe) isSending
-                                ? Icon(Icons.timer, size: 15, color: Colors.grey.shade500)
-                                : Icon(Icons.done_all, size: 0, color: Colors.white.withAlpha(0)),
-                          ],
-                        ),
-                      )
-                    ],
-                  ),
-                ],
-              ),
+            child: Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 4, 4, 20),
+                  child: _buildMainContent(hasValidReply),
+                ),
+                Positioned(
+                  bottom: 4,
+                  right: 8,
+                  child: _buildTimestamp(),
+                ),
+              ],
             ),
           ),
         ),
@@ -502,40 +544,104 @@ class ChatBubble extends StatelessWidget {
     );
   }
 
+  Widget _buildMainContent(bool hasValidReply) {
+    final bool hasMedia = messageMedia != null && messageMedia!.isNotEmpty;
+    final bool hasText = message.isNotEmpty && message != "♥︎";
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (hasValidReply) _buildReplyContent(),
+        if (hasMedia) _buildMediaContent(hasText),
+        if (hasText) _buildTextContent(),
+      ],
+    );
+  }
+
   Widget _buildReplyContent() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(8),
-        border: const Border(
-          left: BorderSide(
-            color: themePrimaryColor,
-            width: 4,
-          ),
+    return GestureDetector(
+      onTap: () => onReplyTap?.call(replyId!),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(6, 4, 6, 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.05),
+          borderRadius: const BorderRadius.all(Radius.circular(8)),
+          border: const Border(left: BorderSide(color: themePrimaryColor, width: 4)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(replyOwner ?? "", style: const TextStyle(fontWeight: FontWeight.bold, color: themePrimaryColor, fontSize: 13)),
+            const SizedBox(height: 2),
+            Text(replyText!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, color: Colors.black54)),
+          ],
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            replyOwner ?? "",
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: themePrimaryColor,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            replyText!,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 14, color: Colors.black54),
-          ),
-        ],
+    );
+  }
+
+  Widget _buildMediaContent(bool hasTextBelow) {
+    final bool isLocalFile = !(messageMedia?.startsWith('http') ?? false);
+    final double bottomRadius = hasTextBelow ? 0.0 : 12.0;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.vertical(top: const Radius.circular(12.0), bottom: Radius.circular(bottomRadius)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 300),
+        child: isLocalFile
+            ? Image.file(File(messageMedia!), fit: BoxFit.cover)
+            : Image.network(
+          messageMedia!,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, progress) => progress == null ? child : Container(height: 250, color: myBubbleColor, child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: themePrimaryColor))),
+          errorBuilder: (context, error, stack) => Container(height: 250, color: Colors.grey.shade200, child: const Center(child: Icon(Icons.broken_image, color: Colors.grey))),
+        ),
       ),
+    );
+  }
+
+  Widget _buildTextContent() {
+    final bool hasMediaAbove = messageMedia != null && messageMedia!.isNotEmpty;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(10, hasMediaAbove ? 8 : 4, 10, 4),
+      child: Text(
+        message,
+        style: const TextStyle(fontSize: 16, color: Color(0xFF333333), height: 1.4),
+      ),
+    );
+  }
+
+  Widget _buildTimestamp() {
+    final bool hasText = message.isNotEmpty && message != "♥︎";
+    final bool hasMedia = messageMedia != null && messageMedia!.isNotEmpty;
+    final bool isTextWhite = hasMedia && !hasText;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          time,
+          style: TextStyle(
+            fontSize: 11,
+            color: isTextWhite ? Colors.white : Colors.grey.shade600,
+            shadows: isTextWhite ? [const Shadow(color: Colors.black54, blurRadius: 4)] : [],
+          ),
+        ),
+        if (isMe) ...[
+          const SizedBox(width: 4),
+          Icon(
+            isSending ? Icons.timer_outlined : Icons.done_all,
+            size: 15,
+            color: isSending
+                ? (isTextWhite ? Colors.white70 : Colors.grey.shade600)
+                : (isTextWhite ? Colors.white : themePrimaryColor),
+            shadows: isTextWhite ? [const Shadow(color: Colors.black54, blurRadius: 4)] : [],
+          ),
+        ]
+      ],
     );
   }
 }

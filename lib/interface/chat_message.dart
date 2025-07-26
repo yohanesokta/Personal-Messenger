@@ -2,6 +2,7 @@ class ChatMessage {
   final String id;
   final String deviceId;
   final String messageText;
+  final String? messageMedia; // <-- WAJIB ADA
   final DateTime createAt;
   final bool isMe;
   final bool isSending;
@@ -12,6 +13,7 @@ class ChatMessage {
     required this.id,
     required this.deviceId,
     required this.messageText,
+    this.messageMedia, // <-- WAJIB ADA
     required this.createAt,
     required this.isMe,
     this.isSending = false,
@@ -22,8 +24,9 @@ class ChatMessage {
   factory ChatMessage.fromJson(Map<String, dynamic> json, String myDeviceId) {
     return ChatMessage(
       id: json['id'] as String,
+      messageText: json['message_text'] as String? ?? '',
+      messageMedia: json['message_media'] as String?, // <-- WAJIB ADA
       deviceId: json['device_id'] as String,
-      messageText: json['message_text'] as String,
       createAt: DateTime.parse(json['createAt']),
       isMe: json['device_id'] == myDeviceId,
       replyId: json['reply_id'] as String?,
@@ -36,6 +39,7 @@ class ChatMessage {
       'id': id,
       'device_id': deviceId,
       'message_text': messageText,
+      'message_media': messageMedia, // <-- WAJIB ADA
       'reply_id': replyId,
       'reply_text': replyText,
       'createAt': createAt.toIso8601String(),
