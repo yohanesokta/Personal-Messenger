@@ -8,11 +8,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../utils/image_preview_screen.dart';
+import '../utils/image_viewer_screen.dart'; // <-- IMPORT FILE BARU
 import '../interface/chat_message.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../context.dart';
 
+// --- TEMA UNGU MODERN ---
 const Color themePrimaryColor = Color(0xFF5A2C9D);
 const Color themeLightPurple = Color(0xFFD1C4E9);
 const Color myBubbleColor = Color(0xFFEDE7F6);
@@ -529,7 +531,7 @@ class ChatBubble extends StatelessWidget {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 4, 4, 20),
-                  child: _buildMainContent(hasValidReply),
+                  child: _buildMainContent(context, hasValidReply),
                 ),
                 Positioned(
                   bottom: 4,
@@ -544,7 +546,7 @@ class ChatBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildMainContent(bool hasValidReply) {
+  Widget _buildMainContent(BuildContext context, bool hasValidReply) {
     final bool hasMedia = messageMedia != null && messageMedia!.isNotEmpty;
     final bool hasText = message.isNotEmpty && message != "♥︎";
 
@@ -553,7 +555,7 @@ class ChatBubble extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (hasValidReply) _buildReplyContent(),
-        if (hasMedia) _buildMediaContent(hasText),
+        if (hasMedia) _buildMediaContent(context, hasText),
         if (hasText) _buildTextContent(),
       ],
     );
@@ -582,21 +584,37 @@ class ChatBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildMediaContent(bool hasTextBelow) {
+  Widget _buildMediaContent(BuildContext context, bool hasTextBelow) {
     final bool isLocalFile = !(messageMedia?.startsWith('http') ?? false);
     final double bottomRadius = hasTextBelow ? 0.0 : 12.0;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.vertical(top: const Radius.circular(12.0), bottom: Radius.circular(bottomRadius)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 300),
-        child: isLocalFile
-            ? Image.file(File(messageMedia!), fit: BoxFit.cover)
-            : Image.network(
-          messageMedia!,
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, progress) => progress == null ? child : Container(height: 250, color: myBubbleColor, child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: themePrimaryColor))),
-          errorBuilder: (context, error, stack) => Container(height: 250, color: Colors.grey.shade200, child: const Center(child: Icon(Icons.broken_image, color: Colors.grey))),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ImageViewerScreen(
+              imageUrl: messageMedia!,
+              isLocalFile: isLocalFile,
+            ),
+          ),
+        );
+      },
+      child: Hero(
+        tag: messageMedia!,
+        child: ClipRRect(
+          borderRadius: BorderRadius.vertical(top: const Radius.circular(12.0), bottom: Radius.circular(bottomRadius)),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 300),
+            child: isLocalFile
+                ? Image.file(File(messageMedia!), fit: BoxFit.cover)
+                : Image.network(
+              messageMedia!,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, progress) => progress == null ? child : Container(height: 250, color: myBubbleColor, child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: themePrimaryColor))),
+              errorBuilder: (context, error, stack) => Container(height: 250, color: Colors.grey.shade200, child: const Center(child: Icon(Icons.broken_image, color: Colors.grey))),
+            ),
+          ),
         ),
       ),
     );
