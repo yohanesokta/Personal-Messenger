@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
-// Class Password tidak berubah
 class Password {
   final int id;
   final String provider;
@@ -45,7 +44,6 @@ class _ViewState extends State<View> {
     futurePasswords = fetchPasswords();
   }
 
-  // Fungsi fetchPasswords tidak berubah
   Future<List<Password>> fetchPasswords() async {
     await dotenv.load(fileName: '.env');
     final response = await http.post(
@@ -69,7 +67,6 @@ class _ViewState extends State<View> {
     });
   }
 
-  // Fungsi _getProviderIcon tidak berubah
   Widget _getProviderIcon(String provider) {
     IconData icon;
     Color color;
@@ -111,7 +108,6 @@ class _ViewState extends State<View> {
     );
   }
 
-  // --- IMPLEMENTASI FITUR TAMBAH PASSWORD ---
   void _addPassword() {
     final _providerController = TextEditingController();
     final _usernameController = TextEditingController();
@@ -199,12 +195,12 @@ class _ViewState extends State<View> {
     );
 
     if (mounted) {
-      Navigator.pop(context); // Tutup bottom sheet
+      Navigator.pop(context);
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Akun berhasil ditambahkan!'), backgroundColor: Colors.green),
         );
-        _refreshPasswords(); // Muat ulang data
+        _refreshPasswords();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Gagal menambahkan akun.'), backgroundColor: Colors.red),
@@ -213,7 +209,6 @@ class _ViewState extends State<View> {
     }
   }
 
-  // --- IMPLEMENTASI FITUR HAPUS PASSWORD ---
   void _deletePassword(int id) {
     showDialog(
       context: context,
@@ -228,7 +223,7 @@ class _ViewState extends State<View> {
             ),
             TextButton(
               onPressed: () {
-                Navigator.of(ctx).pop(); // Tutup dialog konfirmasi
+                Navigator.of(ctx).pop();
                 _performDeletePassword(id);
               },
               child: const Text('Hapus', style: TextStyle(color: Colors.red)),
@@ -249,12 +244,12 @@ class _ViewState extends State<View> {
     );
 
     if (mounted) {
-      Navigator.pop(context); // Tutup bottom sheet detail
+      Navigator.pop(context);
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Akun berhasil dihapus!'), backgroundColor: Colors.green),
         );
-        _refreshPasswords(); // Muat ulang data
+        _refreshPasswords();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Gagal menghapus akun.'), backgroundColor: Colors.red),
@@ -275,7 +270,6 @@ class _ViewState extends State<View> {
     );
   }
 
-  // Build method tidak berubah
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -375,7 +369,6 @@ class _ViewState extends State<View> {
     );
   }
 
-  // Method _showPasswordDetails diupdate untuk memanggil fungsi delete
   void _showPasswordDetails(BuildContext context, Password currentPassword) {
     showModalBottomSheet(
       context: context,
@@ -423,7 +416,6 @@ class _ViewState extends State<View> {
                         IconButton(
                           icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 28),
                           onPressed: () {
-                            // Panggil fungsi hapus dengan konfirmasi
                             _deletePassword(currentPassword.id);
                           },
                         ),
@@ -481,7 +473,6 @@ class _ViewState extends State<View> {
     );
   }
 
-  // Method _buildTextField tidak berubah
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,

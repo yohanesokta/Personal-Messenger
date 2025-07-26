@@ -11,7 +11,6 @@ class Utama extends StatefulWidget {
 }
 
 class _UtamaState extends State<Utama> {
-  // === BAGIAN LOGIKA TIDAK DIUBAH ===
   final DateTime targetDate = DateTime(2024, 3, 29, 1, 0, 0);
   String durationString = "Menghitung...";
   String durationDetail = "Menghitung...";
@@ -75,21 +74,17 @@ class _UtamaState extends State<Utama> {
       durationDetail = "$hours jam : $minutes menit : $seconds detik";
     });
   }
-  // === AKHIR BAGIAN LOGIKA ===
 
-  // Widget untuk membuat efek kaca dengan BAYANGAN untuk KONTRAST
   Widget _buildGlassContainer({
     required Widget child,
     double padding = 16.0,
-    Color shadowColor = Colors.black, // Warna default untuk shadow
+    Color shadowColor = Colors.black,
   }) {
     return Container(
-      // Lapisan luar ini HANYA untuk menampilkan bayangan
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            // Bayangan modern yang lembut dan berwarna
             color: shadowColor.withOpacity(0.2),
             blurRadius: 30,
             spreadRadius: -5,
@@ -97,7 +92,6 @@ class _UtamaState extends State<Utama> {
           ),
         ],
       ),
-      // Lapisan dalam adalah efek kaca yang sudah kita buat sebelumnya
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: BackdropFilter(
@@ -119,7 +113,6 @@ class _UtamaState extends State<Utama> {
     );
   }
 
-  // Widget untuk chip tanggal di atas
   Widget _buildDateChip(String label, {IconData? icon, Color? iconColor, required Color shadowColor}) {
     final Color textColor = Colors.grey.shade800;
     return _buildGlassContainer(
