@@ -1,4 +1,5 @@
 // lib/main.dart
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -14,6 +15,7 @@ import 'context.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import "components/key_saver.dart" as key_server;
+import "utils/firebase_service.dart" as firebase_notification;
 
 Future<String> getDeviceId() async {
   final info = DeviceInfoPlugin();
@@ -43,6 +45,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   late ContextService contextService;
   late String myDeviceId;
+
+
   try {
     await Permission.notification.isDenied.then((value) {
       if (value) {
@@ -61,6 +65,13 @@ Future<void> main() async {
     myDeviceId = await getDeviceId();
     contextService = ContextService(myDeviceId: myDeviceId);
     await contextService.loadFromAPI();
+  } catch (error) {
+    debugPrint(error.toString());
+  }
+
+  try {
+    await Firebase.initializeApp();
+    await firebase_notification.NotificationService.instance.initialize();
   } catch (error) {
     debugPrint(error.toString());
   }

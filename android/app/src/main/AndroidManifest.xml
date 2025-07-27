@@ -49,6 +49,10 @@
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
             android:foregroundServiceType="dataSync" />
+        <meta-data
+            android:name="com.google.firebase.messaging.high_chanel"
+            android:value="high_chanel"/>
+
 
     </application>
     <!-- Required to query activities that can process text, see:
