@@ -157,7 +157,7 @@ class _KeyWigetState extends State<KeyWiget> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("${dotenv.env['SOCKET_URL']}")),
+      appBar: AppBar(title: Text("Mode YTTA")),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

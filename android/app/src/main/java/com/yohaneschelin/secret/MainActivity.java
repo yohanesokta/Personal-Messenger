@@ -1,4 +1,4 @@
-package com.example.secret_loves;
+package com.yohaneschelin.secret;
 
 import io.flutter.embedding.android.FlutterActivity;
 
