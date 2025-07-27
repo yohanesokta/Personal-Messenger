@@ -168,7 +168,7 @@ class _KeyWigetState extends State<KeyWiget> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Mode YTTA")),
+      appBar: AppBar(title: Text("Hanya Kita Berdua")),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
