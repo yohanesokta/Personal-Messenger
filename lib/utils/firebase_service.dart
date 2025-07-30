@@ -1,122 +1,50 @@
+// lib/utils/firebase_service.dart
+
+import 'dart:convert';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/material.dart';
+import 'package:secret_love/context.dart'; // Ganti dengan path Anda jika berbeda
+import 'package:shared_preferences/shared_preferences.dart';
+
+const String _fcmMessageKey = 'fcm_message';
 
 @pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  if (message.data['silent'] == 'true') {
-    print("Silent foreground message received, ignoring.");
-    return;
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  debugPrint("--- FCM Background Handler ---");
+  debugPrint("Data: ${message.data}");
+  if (message.data['silent'] == 'true' || message.data['silent'] == true) {
+    debugPrint("Pesan silent diterima di background, tidak ada notifikasi akan ditampilkan.");
+  } else {
+    debugPrint("Menulis pesan ke SharedPreferences untuk notifikasi.");
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_fcmMessageKey, jsonEncode(message.data));
   }
-  await NotificationService.instance.setupFlutterNotification();
-  await NotificationService.instance.showNotification(message);
 }
 
-class NotificationService {
-  NotificationService._();
-  static final NotificationService instance = NotificationService._();
+class FirebaseService {
+  static final FirebaseService instance = FirebaseService._();
+  FirebaseService._();
 
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotification =
-  FlutterLocalNotificationsPlugin();
+  ContextService? _contextService;
 
-  bool _isFlutterLocalNotificationInitialized = false;
-
-  Future<void> initialize() async {
-    await _requestPermission();
-
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-    await _messaging.subscribeToTopic('keep-alive');
-    print("Successfully subscribed to 'keep-alive' topic");
-
-    await setupFlutterNotification();
-
-    await _setupMessageHandlers();
+  void setupListeners({required ContextService contextService}) {
+    _contextService = contextService;
+    _setupForegroundMessageHandler();
   }
 
-  Future<void> _requestPermission() async {
-    final settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: true,
-    );
-    print("User permission status: ${settings.authorizationStatus}");
-  }
-
-  Future<void> setupFlutterNotification() async {
-    if (_isFlutterLocalNotificationInitialized) {
-      return;
-    }
-
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'high_importance_channel',
-      'High Importance Notifications',
-      description: 'This channel is used for important notifications.',
-      importance: Importance.high,
-    );
-
-    await _localNotification
-        .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
-
-    const AndroidInitializationSettings initializationSettingsAndroid =
-    AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    const InitializationSettings initializationSettings =
-    InitializationSettings(android: initializationSettingsAndroid);
-
-    await _localNotification.initialize(initializationSettings,
-        onDidReceiveNotificationResponse: (details) {
-          print('Notification tapped with payload: ${details.payload}');
-        });
-
-    _isFlutterLocalNotificationInitialized = true;
-  }
-
-  Future<void> showNotification(RemoteMessage message) async {
-    final RemoteNotification? notification = message.notification;
-    final AndroidNotification? android = message.notification?.android;
-    if (notification != null && android != null) {
-      await _localNotification.show(
-        notification.hashCode,
-        notification.title,
-        notification.body,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            'high_importance_channel',
-            'High Importance Notifications',
-            channelDescription: 'This channel is used for important notifications.',
-            importance: Importance.high,
-            priority: Priority.high,
-            icon: '@mipmap/ic_launcher',
-          ),
-        ),
-        payload: message.data.toString(),
-      );
-    }
-  }
-
-  Future<void> _setupMessageHandlers() async {
+  void _setupForegroundMessageHandler() {
+    FirebaseMessaging.instance.subscribeToTopic('message');
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('Got a message whilst in the foreground!');
-      print('Message data: ${message.data}');
-
-      if (message.data['silent'] == 'true') {
-        print("Silent foreground message received, ignoring.");
-        return;
+      debugPrint('--- PESAN DITERIMA DI FOREGROUND ---');
+      debugPrint("Data: ${message.data}");
+      _contextService?.loadFromAPI();
+      if (message.data['silent'] != 'true' && message.data['silent'] != true) {
+        debugPrint("Pesan normal, memicu update UI.");
+      } else {
+        debugPrint("Pesan silent, hanya update data di UI tanpa notifikasi.");
       }
-
-      if (message.notification != null) {
-        print('Message also contained a notification: ${message.notification}');
-        showNotification(message);
-      }
-    });
-
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('A new onMessageOpenedApp event was published!');
     });
   }
 }
-

@@ -1,13 +1,17 @@
+// lib/utils/background_service.dart
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
-import 'package:device_info_plus/device_info_plus.dart';
-import 'notification_helper.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_background_service_android/flutter_background_service_android.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+const String _notificationChannelId = 'my_foreground_service';
+const String _fcmMessageKey = 'fcm_message';
 
 Future<String> getDeviceId() async {
   final info = DeviceInfoPlugin();
@@ -15,94 +19,69 @@ Future<String> getDeviceId() async {
   return android.model ?? 'unknown-device';
 }
 
-
-Future<void> initializeService() async {
-  final service = FlutterBackgroundService();
-
-  await service.configure(
-    androidConfiguration: AndroidConfiguration(
-      autoStartOnBoot: true,
-      onStart: onStart,
-      isForegroundMode: true,
-      autoStart: false,
-      foregroundServiceTypes: [
-        AndroidForegroundType.dataSync,
-      ],
-      notificationChannelId: 'background_socket_channel',
-      initialNotificationTitle: 'Aplikasi Yohanes Berjalan',
-      initialNotificationContent: 'Beliau Mengintai Di Background...',
-      foregroundServiceNotificationId: 888,
-    ),
-    iosConfiguration: IosConfiguration(),
-  );
-}
-
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
-  await NotificationHelper.initialize();
-  await dotenv.load(fileName: '.env');
-  late IO.Socket socket;
-  final myDeviceId = await getDeviceId();
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
   if (service is AndroidServiceInstance) {
-    print("ANJAYYYYYYYYYYY FORGROUND!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
     service.setAsForegroundService();
   }
-  void connectToSocket() {
-    socket = IO.io(dotenv.env['SOCKET_URL'], <String, dynamic>{
-      'transports': ['websocket'],
-      'autoConnect': false,
-    });
 
-    socket.onConnect((_) {
-      debugPrint('SOCKET CONNECTED: ${socket.id}');
-      NotificationHelper.showNotification(title: "Koneksi",
-          body: "Koneksi Berhasil Dilakukan."
-      );
-      service.invoke(
-        'update',
-        {
-          "message": "Socket Terhubung",
-        },
-      );
-    });
+  final myDeviceId = await getDeviceId();
+  debugPrint("Background Service Started. My Device ID: $myDeviceId");
 
-    socket.on('message', (data) {
-      final messages = jsonDecode(data.toString()) as Map<String, dynamic>;
-        if (messages["device_id"] != myDeviceId) {
-          NotificationHelper.showNotification(
-            title: 'Dari Kekasihmu ❤︎',
-            body: messages['message'],
-          );
-        }
-          service.invoke("message");
-    });
+  // Timer untuk memeriksa "kotak surat" (SharedPreferences) setiap 2 detik
+  Timer.periodic(const Duration(seconds: 2), (timer) async {
+    final prefs = await SharedPreferences.getInstance();
+    final messageString = prefs.getString(_fcmMessageKey);
 
-    socket.onDisconnect((_) {
-      debugPrint('SOCKET DISCONNECTED');
-      NotificationHelper.showNotification(title: "Koneksi",
-          body: "Memeriksa Pesan Baru.."
-      );
-      service.invoke(
-        'update',
-        {
-          "message": "Socket Terputus",
-        },
-      );
-    });
+    if (messageString != null) {
+      debugPrint("Background Service: Menemukan pesan baru di SharedPreferences!");
 
-    socket.onError((error) {
-      debugPrint('SOCKET ERROR: $error');
-    });
-
-    socket.connect();
-  }
-
-  connectToSocket();
-
-  service.on('stopService').listen((event) {
-    socket.disconnect();
-    socket.dispose();
-    service.stopSelf();
+      // Hapus pesan agar tidak diproses lagi
+      await prefs.remove(_fcmMessageKey);
+      final Map<String, dynamic> event = jsonDecode(messageString);
+      final String deviceIdFromServer = event['device_id'] ?? '';
+      final bool isSilent = event['silent'] == 'true';
+      if (isSilent) {
+        debugPrint("Silent message processed, not showing notification.");
+        return;
+      }
+      if (deviceIdFromServer != myDeviceId) {
+        flutterLocalNotificationsPlugin.show(
+          DateTime.now().millisecond,
+          event['title'] ?? 'Dari Kekasihmu ❤︎',
+          event['body'] ?? 'Kamu menerima pesan baru.',
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              _notificationChannelId,
+              'Layanan Latar Belakang',
+              channelDescription: 'Channel ini digunakan untuk layanan latar belakang.',
+              priority: Priority.high,
+              importance: Importance.max,
+              icon: '@mipmap/ic_launcher',
+            ),
+          ),
+        );
+      }
+      service.invoke("mew_message");
+    }
   });
+}
+
+Future<void> initializeService() async {
+  final service = FlutterBackgroundService();
+  await service.configure(
+    iosConfiguration: IosConfiguration(),
+    androidConfiguration: AndroidConfiguration(
+      onStart: onStart,
+      isForegroundMode: true,
+      autoStart: false,
+      notificationChannelId: _notificationChannelId,
+      initialNotificationTitle: 'Aplikasi Siaga',
+      initialNotificationContent: 'Menunggu pesan dari kekasihmu...',
+      foregroundServiceNotificationId: 888,
+    ),
+  );
 }
