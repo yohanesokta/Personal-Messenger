@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:secret_love/utils/app_lifecycle_handler.dart';
 import '/components/menu.dart';
 import '/components/settings.dart';
 import '/components/webview_calls.dart';
@@ -26,32 +27,25 @@ Future<String> getDeviceId() async {
   return android.model ?? 'unknown-device';
 }
 
-// --- FUNGSI BARU UNTUK MEMINTA IZIN ---
 Future<void> requestAllPermissions() async {
-  // Daftar izin yang memerlukan pop-up
   Map<Permission, PermissionStatus> statuses = await [
-    Permission.notification, // untuk POST_NOTIFICATIONS
+    Permission.notification,
     Permission.camera,
     Permission.microphone,
-    Permission.storage, // untuk READ/WRITE_EXTERNAL_STORAGE (Android lama)
-    Permission.photos, // untuk READ_MEDIA_IMAGES (Android 13+)
-    // Tambahkan Permission.videos atau Permission.audio jika perlu
+    Permission.storage,
+    Permission.photos,
   ].request();
 
-  // (Opsional) Cetak status setiap izin untuk debugging
   statuses.forEach((permission, status) {
     debugPrint('Izin ${permission.toString()}: $status');
   });
 }
 
-// --- FUNGSI BARU UNTUK MENGARAHKAN KE PENGATURAN BATERAI ---
 Future<void> handleBatteryOptimization(BuildContext context) async {
   PermissionStatus status = await Permission.ignoreBatteryOptimizations.status;
   debugPrint('Status optimisasi baterai: $status');
 
-  // Jika izin belum diberikan
   if (status.isDenied) {
-    // Tampilkan dialog penjelasan terlebih dahulu
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -62,7 +56,6 @@ Future<void> handleBatteryOptimization(BuildContext context) async {
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              // Arahkan pengguna ke pengaturan sistem
               Permission.ignoreBatteryOptimizations.request();
             },
             child: const Text('Mengerti'),
@@ -94,13 +87,11 @@ Future<void> main() async {
   final service = FlutterBackgroundService();
   late ContextService contextService;
   late String myDeviceId;
-  late GlobalKey<NavigatorState> navigatorKey; // Kunci untuk mengakses BuildContext
+  late GlobalKey<NavigatorState> navigatorKey;
 
   try {
     await dotenv.load(fileName: '.env');
 
-    // --- MEMANGGIL FUNGSI PERMINTAAN IZIN ---
-    // Fungsi ini hanya akan menampilkan pop-up jika izin belum diberikan.
     await requestAllPermissions();
 
     myDeviceId = await getDeviceId();
@@ -117,21 +108,20 @@ Future<void> main() async {
 
 
   final webrtcUrl = dotenv.env['SOCKET_URL']!;
-  navigatorKey = GlobalKey<NavigatorState>(); // Inisialisasi kunci navigator
+  navigatorKey = GlobalKey<NavigatorState>();
 
   runApp(
     ChangeNotifierProvider.value(
       value: contextService,
       child: MyApp(
-        deviceId: myDeviceId,
-        webrtcUrl: webrtcUrl,
-        navigatorKey: navigatorKey,
+          contextService: contextService,
+          deviceId: myDeviceId,
+          webrtcUrl: webrtcUrl,
+          navigatorKey: navigatorKey,
       ),
     ),
   );
 
-  // Panggil handleBatteryOptimization setelah runApp agar punya BuildContext
-  // Memberi sedikit jeda agar UI siap
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     if (navigatorKey.currentContext != null) {
       await handleBatteryOptimization(navigatorKey.currentContext!);
@@ -145,37 +135,43 @@ class MyApp extends StatelessWidget {
     required this.deviceId,
     required this.webrtcUrl,
     required this.navigatorKey,
+    required this.contextService
   });
   final String deviceId;
   final String webrtcUrl;
   final GlobalKey<NavigatorState> navigatorKey;
+  final ContextService contextService;
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: navigatorKey, // Set kunci navigator di sini
-      title: 'Hanya Kita Berdua',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        useMaterial3: true,
+    return LifecycleWatcher(
+      contextService: contextService,
+      navigatorKey: navigatorKey,
+      child: MaterialApp(
+        navigatorKey: navigatorKey,
+        title: 'Hanya Kita Berdua',
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          useMaterial3: true,
+        ),
+        home: KeyWiget(),
+        routes: <String, WidgetBuilder>{
+          "/key" : (BuildContext context) => KeyWiget(),
+          "/menu": (BuildContext context) => Menu(),
+          "/settings": (BuildContext context) => Settings(),
+          "/remotecam": (BuildContext context) => VideoCallView(
+            webRtcUrl: "$webrtcUrl/cam?device=$deviceId",
+          ),
+          "/remotecall": (BuildContext context) => VideoCallView(
+            webRtcUrl: "$webrtcUrl/call?device=$deviceId",
+          ),
+          "/keysaver": (BuildContext context) => key_server.View(),
+        },
       ),
-      home: KeyWiget(),
-      routes: <String, WidgetBuilder>{
-        "/menu": (BuildContext context) => Menu(),
-        "/settings": (BuildContext context) => Settings(),
-        "/remotecam": (BuildContext context) => VideoCallView(
-          webRtcUrl: "$webrtcUrl/cam?device=$deviceId",
-        ),
-        "/remotecall": (BuildContext context) => VideoCallView(
-          webRtcUrl: "$webrtcUrl/call?device=$deviceId",
-        ),
-        "/keysaver": (BuildContext context) => key_server.View(),
-      },
     );
   }
 }
 
-// Class KeyWiget tidak perlu diubah
 class KeyWiget extends StatefulWidget {
   const KeyWiget({super.key});
   @override
@@ -199,7 +195,7 @@ class _KeyWigetState extends State<KeyWiget> {
     return value != password_text;
   }
 
-  void secretChage(value) {
+  void secretChage(value) async {
     if (value.toString().length >= password_text.length) {
       if (checkPass(value)) {
         txtpass.text = "";
@@ -208,6 +204,7 @@ class _KeyWigetState extends State<KeyWiget> {
         });
       } else {
         FlutterBackgroundService().startService();
+
         txtpass.text = "";
         Navigator.pushReplacementNamed(context, '/menu');
       }
