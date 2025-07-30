@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "964826958506",
+    "project_id": "ngp-conect",
+    "storage_bucket": "ngp-conect.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:964826958506:android:34f4d3a35c77e91f3a5ed3",
+        "android_client_info": {
+          "package_name": "com.yohanes.chelin.secret"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD7y4PtgMbMJkze1yWtizXI4aFP-c6FIsQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:964826958506:android:481dd0b100980cc13a5ed3",
+        "android_client_info": {
+          "package_name": "com.yohaneschelin.secret"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD7y4PtgMbMJkze1yWtizXI4aFP-c6FIsQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
