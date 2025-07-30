@@ -1,5 +1,3 @@
-// lib/utils/background_service.dart
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
@@ -31,7 +29,6 @@ void onStart(ServiceInstance service) async {
   final myDeviceId = await getDeviceId();
   debugPrint("Background Service Started. My Device ID: $myDeviceId");
 
-  // Timer untuk memeriksa "kotak surat" (SharedPreferences) setiap 2 detik
   Timer.periodic(const Duration(seconds: 2), (timer) async {
     final prefs = await SharedPreferences.getInstance();
     final messageString = prefs.getString(_fcmMessageKey);
@@ -39,7 +36,6 @@ void onStart(ServiceInstance service) async {
     if (messageString != null) {
       debugPrint("Background Service: Menemukan pesan baru di SharedPreferences!");
 
-      // Hapus pesan agar tidak diproses lagi
       await prefs.remove(_fcmMessageKey);
       final Map<String, dynamic> event = jsonDecode(messageString);
       final String deviceIdFromServer = event['device_id'] ?? '';

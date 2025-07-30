@@ -30,7 +30,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(null), // Kirim null jika dibatalkan
+          onPressed: () => Navigator.of(context).pop(null), 
         ),
       ),
       body: SafeArea(
