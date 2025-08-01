@@ -7,14 +7,14 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
-import '../utils/image_preview_screen.dart';
-import '../utils/image_viewer_screen.dart'; // <-- IMPORT FILE BARU
-import '../interface/chat_message.dart';
+import '../../utils/image_preview_screen.dart';
+import '../../utils/image_viewer_screen.dart';
+import '../../interface/chat_message.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import '../context.dart';
+import '../../context.dart';
+import 'media.dart';
 
-// --- TEMA UNGU MODERN ---
 const Color themePrimaryColor = Color(0xFF5A2C9D);
 const Color themeLightPurple = Color(0xFFD1C4E9);
 const Color myBubbleColor = Color(0xFFEDE7F6);
@@ -36,7 +36,6 @@ class _ChatsState extends State<Chats> {
   Map<String, String>? _replyMessage;
 
   final ItemScrollController _itemScrollController = ItemScrollController();
-  final ImagePicker _picker = ImagePicker();
   String? _highlightedMessageId;
   Timer? _highlightTimer;
 
@@ -96,7 +95,10 @@ class _ChatsState extends State<Chats> {
   }
 
   Future<void> _handleImageSelection() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (!mounted) return;
+    final XFile? image = await Navigator.of(context).push<XFile?>(
+      MaterialPageRoute(builder: (context) => const MediaPickerScreen()),
+    );
     if (image == null) return;
 
     final replyDataForPreview = _replyMessage;
