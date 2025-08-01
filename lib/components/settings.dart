@@ -109,7 +109,7 @@ class _SettingsState extends State<Settings> {
               keyboardType: TextInputType.number,
               style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
               decoration: InputDecoration(
-                labelText: "Masukkan 4 digit PIN baru",
+                labelText: "Masukkan PIN baru",
                 labelStyle: GoogleFonts.poppins(color: secondaryTextColor),
                 filled: true,
                 fillColor: Colors.white,
@@ -129,9 +129,6 @@ class _SettingsState extends State<Settings> {
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'PIN tidak boleh kosong';
-                }
-                if (value.length != 4) {
-                  return 'PIN harus terdiri dari 4 digit';
                 }
                 return null;
               },
