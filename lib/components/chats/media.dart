@@ -2,9 +2,11 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 const Color themePrimaryColor = Color(0xFF5A2C9D);
+final ImagePicker _picker = ImagePicker();
 
 class MediaPickerScreen extends StatefulWidget {
   const MediaPickerScreen({super.key});
@@ -184,9 +186,31 @@ class _MediaPickerScreenState extends State<MediaPickerScreen> {
                     crossAxisSpacing: 2,
                     mainAxisSpacing: 2,
                   ),
-                  itemCount: _assets.length,
+                  itemCount: _assets.length + 1, // Tambah 1 untuk tombol "Media"
                   itemBuilder: (_, index) {
-                    final asset = _assets[index];
+                    if (index == 0) {
+                      return GestureDetector(
+                        onTap: () async {
+                          final XFile? pickedFile = await _picker.pickImage(
+                            source: ImageSource.gallery,
+                          );
+
+                          if (pickedFile != null) {
+                            if (mounted) Navigator.of(context).pop(pickedFile);
+                          }
+                        },
+                        child: Container(
+                          color: const Color.fromARGB(255, 17, 17, 17),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            spacing: 10,
+                            
+                            children: [Icon(Icons.image_rounded,size: 40,color: Colors.white,), Text("Browse Media",style: TextStyle(fontSize: 12,color: Colors.white),)]
+                          ),
+                        ),
+                      );
+                    }
+                    final asset = _assets[index - 1]; // offset karena index ke-0 untuk tombol
                     return FutureBuilder<Uint8List?>(
                       future: asset.thumbnailDataWithSize(const ThumbnailSize(200, 200)),
                       builder: (_, snapshot) {

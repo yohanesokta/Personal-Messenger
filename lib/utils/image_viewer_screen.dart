@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ImageViewerScreen extends StatelessWidget {
   final String imageUrl;
@@ -12,9 +13,11 @@ class ImageViewerScreen extends StatelessWidget {
     required this.imageUrl,
     required this.isLocalFile,
   });
-
+  
   @override
   Widget build(BuildContext context) {
+    final authKey = dotenv.env['AUTH'];
+
     return Scaffold(
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true, // Membuat body di belakang AppBar
@@ -32,7 +35,7 @@ class ImageViewerScreen extends StatelessWidget {
           return PhotoViewGalleryPageOptions(
             imageProvider: isLocalFile
                 ? FileImage(File(imageUrl))
-                : NetworkImage(imageUrl) as ImageProvider,
+                : NetworkImage("$imageUrl?auth=$authKey") as ImageProvider,
             initialScale: PhotoViewComputedScale.contained,
             minScale: PhotoViewComputedScale.contained * 0.8,
             maxScale: PhotoViewComputedScale.covered * 2.0,

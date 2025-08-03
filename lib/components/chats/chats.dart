@@ -124,6 +124,7 @@ class _ChatsState extends State<Chats> {
         messageText: finalCaption,
         messageMedia: image.path,
         createAt: DateTime.now(),
+        reading: true,
         isMe: true,
         isSending: true,
         replyId: replyDataForPreview?['id'],
@@ -179,12 +180,13 @@ class _ChatsState extends State<Chats> {
         createAt: DateTime.now(),
         id: "0",
         isMe: true,
+        reading: false,
         isSending: true,
         replyId: _replyMessage?['id'],
         replyText: _replyMessage?['text'],
       ),
     );
-    _sendMessageToServer(text: text, replyData: _replyMessage);
+    _sendMessageToServer(text: text, replyData: _replyMessage );
     _controller.clear();
     setState(() {
       _replyMessage = null;
@@ -194,15 +196,15 @@ class _ChatsState extends State<Chats> {
   Future<void> _sendMessageToServer({
     String? text,
     String? mediaUrl,
-    Map<String, String>? replyData
+    Map<String, String>? replyData,
   }) async {
+
     final textToSend = text?.trim() ?? '';
     if (textToSend.isEmpty && (mediaUrl == null || mediaUrl.isEmpty)) return;
-
     try {
       await dotenv.load(fileName: '.env');
       await http.post(
-        Uri.parse("${dotenv.env['SOCKET_URL']}/message/send"),
+        Uri.parse("${dotenv.env['SOCKET_URL']}/message/send?auth=${dotenv.env['AUTH']}"),
         headers: {"Content-Type": "application/json; charset=UTF-8"},
         body: jsonEncode({
           "message": textToSend,
@@ -212,6 +214,7 @@ class _ChatsState extends State<Chats> {
           "reply_text": replyData?['text'] ?? "",
         }),
       );
+      await context.read<ContextService>().loadFromAPI();
     } catch (e) {
       print("Error sending message to server: $e");
     }
@@ -275,6 +278,7 @@ class _ChatsState extends State<Chats> {
                   messageMedia: chat.messageMedia,
                   isMe: chat.isMe,
                   isSending: chat.isSending,
+                  reading: chat.reading,
                   time: "${chat.createAt.hour}:${chat.createAt.minute.toString().padLeft(2, '0')}",
                   replyId: chat.replyId,
                   replyText: chat.replyText,
@@ -474,6 +478,7 @@ class ChatBubble extends StatelessWidget {
   final String? replyOwner;
   final bool isHighlighted;
   final VoidCallback? onSwipe;
+  final bool reading;
   final Function(String messageId)? onReplyTap;
 
   const ChatBubble({
@@ -483,6 +488,7 @@ class ChatBubble extends StatelessWidget {
     this.messageMedia,
     required this.time,
     required this.isMe,
+    required this.reading,
     required this.isSending,
     this.replyId,
     this.replyText,
@@ -589,7 +595,7 @@ class ChatBubble extends StatelessWidget {
   Widget _buildMediaContent(BuildContext context, bool hasTextBelow) {
     final bool isLocalFile = !(messageMedia?.startsWith('http') ?? false);
     final double bottomRadius = hasTextBelow ? 0.0 : 12.0;
-
+    final authKey = dotenv.env['AUTH'];
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -610,8 +616,7 @@ class ChatBubble extends StatelessWidget {
             constraints: const BoxConstraints(maxHeight: 300),
             child: isLocalFile
                 ? Image.file(File(messageMedia!), fit: BoxFit.cover)
-                : Image.network(
-              messageMedia!,
+                : Image.network("${messageMedia!}?auth=$authKey",
               fit: BoxFit.cover,
               loadingBuilder: (context, child, progress) => progress == null ? child : Container(height: 250, color: myBubbleColor, child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: themePrimaryColor))),
               errorBuilder: (context, error, stack) => Container(height: 250, color: Colors.grey.shade200, child: const Center(child: Icon(Icons.broken_image, color: Colors.grey))),
@@ -653,11 +658,11 @@ class ChatBubble extends StatelessWidget {
         if (isMe) ...[
           const SizedBox(width: 4),
           Icon(
-            isSending ? Icons.timer_outlined : Icons.done_all,
+            isSending ? Icons.timer_outlined :  Icons.done_all,
             size: 15,
-            color: isSending
+            color: reading ?  Colors.blue : isSending
                 ? (isTextWhite ? Colors.white70 : Colors.grey.shade600)
-                : (isTextWhite ? Colors.white : themePrimaryColor),
+                : (isTextWhite ? Colors.white : Colors.grey),
             shadows: isTextWhite ? [const Shadow(color: Colors.black54, blurRadius: 4)] : [],
           ),
         ]

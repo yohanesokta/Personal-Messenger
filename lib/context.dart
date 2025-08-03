@@ -50,7 +50,12 @@ class ContextService extends ChangeNotifier {
   Future<void> loadFromAPI() async {
     await dotenv.load(fileName: ".env");
     try {
-      final res = await http.post(Uri.parse("${dotenv.env['SOCKET_URL']}/message"));
+      final res = await http.post(Uri.parse("${dotenv.env['SOCKET_URL']}/message?auth=${dotenv.env['AUTH']}"),
+          headers: {"Content-Type": "application/json; charset=UTF-8"},
+          body: jsonEncode({
+            "device_id" : myDeviceId ?? "xiaomi"
+          })
+      );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as List;
         _chats.clear();
@@ -59,9 +64,7 @@ class ContextService extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      if (kDebugMode) {
         print("Failed to fetch messages from API: $e");
-      }
     }
   }
 
