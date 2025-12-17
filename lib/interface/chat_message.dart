@@ -29,13 +29,13 @@ class ChatMessage {
     dotenv.load(fileName: '.env');
     return ChatMessage(
       id: json['id'] as String,
-      messageText: json['message_text'] as String? ?? '',
-      messageMedia: json['message_media'] as String?,
-      reading: json['reading'] as bool? ?? false,
-      deviceId: json['device_id'] as String,
-      createAt: DateTime.parse(json['createAt']),
-      isMe: json['device_id'] == myDeviceId,
-      replyId: json['reply_id'] as String?,
+      messageText: json['content'] as String? ?? '',
+      messageMedia: json['content_image'] as String?,
+      reading: json['reading'] == 1,
+      deviceId: json['receiver_id'] as String,
+      createAt: DateTime.parse(json['created_at']),
+      isMe: json['receiver_id'] == myDeviceId,
+      replyId: json['reply_to'] as String?,
       replyText: json['reply_text'] as String?,
     );
   }
