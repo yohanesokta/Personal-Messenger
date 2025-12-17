@@ -116,10 +116,11 @@ class _ChatsState extends State<Chats> {
     if (captionFromPreview == null) return;
 
     final String finalCaption = captionFromPreview.trim().isEmpty ? "♥︎" : captionFromPreview;
+    final optimisticId = DateTime.now().millisecondsSinceEpoch.toString();
 
     context.read<ContextService>().addMessage(
       ChatMessage(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: optimisticId, // Use a unique temporary ID
         deviceId: context.read<ContextService>().myDeviceId,
         messageText: finalCaption,
         messageMedia: image.path,
@@ -135,14 +136,16 @@ class _ChatsState extends State<Chats> {
     _uploadAndSendMessage(
         localPath: image.path,
         caption: finalCaption,
-        replyData: replyDataForPreview
+        replyData: replyDataForPreview,
+        optimisticId: optimisticId, // Pass the ID
     );
   }
 
   Future<void> _uploadAndSendMessage({
     required String localPath,
     required String caption,
-    Map<String, String>? replyData
+    Map<String, String>? replyData,
+    required String optimisticId,
   }) async {
     try {
       final uploadUrl = Uri.parse("${dotenv.env['SOCKET_URL']}/images");
@@ -162,7 +165,8 @@ class _ChatsState extends State<Chats> {
         await _sendMessageToServer(
             text: caption,
             mediaUrl: publicUrl,
-            replyData: replyData
+            replyData: replyData,
+            optimisticId: optimisticId, // Pass the ID
         );
       } else {
         print("Upload failed: ${response.body}");
@@ -176,12 +180,13 @@ class _ChatsState extends State<Chats> {
     final text = _controller.text.trim();
     if(text.isEmpty) return;
 
+    final optimisticId = DateTime.now().millisecondsSinceEpoch.toString();
     context.read<ContextService>().addMessage(
       ChatMessage(
         deviceId: context.read<ContextService>().myDeviceId,
         messageText: text,
         createAt: DateTime.now(),
-        id: "0",
+        id: optimisticId, // Use a unique temporary ID
         isMe: true,
         reading: false,
         isSending: true,
@@ -189,7 +194,11 @@ class _ChatsState extends State<Chats> {
         replyText: _replyMessage?['text'],
       ),
     );
-    _sendMessageToServer(text: text, replyData: _replyMessage );
+    _sendMessageToServer(
+        text: text,
+        replyData: _replyMessage,
+        optimisticId: optimisticId, // Pass the ID
+    );
     _controller.clear();
     setState(() {
       _replyMessage = null;
@@ -200,25 +209,43 @@ class _ChatsState extends State<Chats> {
     String? text,
     String? mediaUrl,
     Map<String, String>? replyData,
+    required String optimisticId,
   }) async {
 
     final textToSend = text?.trim() ?? '';
     if (textToSend.isEmpty && (mediaUrl == null || mediaUrl.isEmpty)) return;
+    final contextService = context.read<ContextService>();
     try {
       await dotenv.load(fileName: '.env');
+      
+      // Find the last message that was confirmed from the server to get a safe timestamp.
+      ChatMessage? lastRealMessage;
+      for (final chat in contextService.chats) {
+        if (chat.isSending == false) {
+          lastRealMessage = chat;
+          break; // The list is sorted newest to oldest, so the first real one is the latest.
+        }
+      }
+
       var res = await http.post(
         Uri.parse("${dotenv.env['SOCKET_URL']}/message?Auth=${dotenv.env['AUTH']}"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "content": textToSend,
           "content_image": mediaUrl ?? "",
-          "receiver_id": context.read<ContextService>().myDeviceId,
+          "receiver_id": contextService.myDeviceId,
           "reply_to": replyData?['id'],
           "reply_text": replyData?['text'] ,
         }),
       );
-      print("Success SEND : ${res.body}");
-      await context.read<ContextService>().loadFromAPI();
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        print("Success SEND : ${res.body}");
+        contextService.markMessageAsSent(optimisticId); // Removed await
+      } else {
+        print("DIAGNOSTIC: Send message failed with status ${res.statusCode}. Body: ${res.body}");
+        // Here you could add logic to mark the optimistic message as 'failed'
+      }
     } catch (e) {
       print("Error sending message to server: $e");
     }

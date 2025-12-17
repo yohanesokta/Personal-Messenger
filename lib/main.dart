@@ -94,9 +94,13 @@ Future<void> main() async {
 
     myDeviceId = await getDeviceId();
     contextService = ContextService(myDeviceId: myDeviceId);
-    await contextService.loadFromAPI();
+    // The initial load is now handled inside the ContextService's _init method.
+    // await contextService.loadFromAPI(); // This is no longer needed here.
+
     service.on("mew_message").listen((message) async {
-      await contextService.loadFromAPI();
+      // Use the new, efficient method to fetch only new messages
+      // Convert DateTime to ISO 8601 String for the 'after' parameter
+      await contextService.fetchMessages(after: contextService.chats.firstOrNull?.createAt?.toIso8601String());
     });
     FirebaseService.instance.setupListeners(contextService: contextService);
 

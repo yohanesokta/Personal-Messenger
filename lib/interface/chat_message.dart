@@ -52,4 +52,30 @@ class ChatMessage {
       'createAt': createAt.toIso8601String(),
     };
   }
+
+  ChatMessage copyWith({
+    String? id,
+    String? deviceId,
+    String? messageText,
+    String? messageMedia,
+    DateTime? createAt,
+    bool? isMe,
+    bool? isSending,
+    String? replyId,
+    String? replyText,
+    bool? reading,
+  }) {
+    return ChatMessage(
+      id: id ?? this.id,
+      deviceId: deviceId ?? this.deviceId,
+      messageText: messageText ?? this.messageText,
+      messageMedia: messageMedia ?? this.messageMedia,
+      createAt: createAt ?? this.createAt,
+      isMe: isMe ?? this.isMe,
+      isSending: isSending ?? this.isSending,
+      replyId: replyId ?? this.replyId,
+      replyText: replyText ?? this.replyText,
+      reading: reading ?? this.reading,
+    );
+  }
 }
