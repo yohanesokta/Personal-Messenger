@@ -33,7 +33,7 @@ class FirebaseService {
   }
 
   void _setupForegroundMessageHandler() {
-    FirebaseMessaging.instance.subscribeToTopic('message');
+   final _firebaseMassaging =  FirebaseMessaging.instance.subscribeToTopic('message');
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('--- PESAN DITERIMA DI FOREGROUND ---');
       debugPrint("Data: ${message.data}");
@@ -42,7 +42,7 @@ class FirebaseService {
         debugPrint("Pesan normal, memicu update UI.");
       } else {
         debugPrint("Pesan silent, hanya update data di UI tanpa notifikasi.");
-      }
+      } 
     });
   }
 }

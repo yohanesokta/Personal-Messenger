@@ -145,16 +145,19 @@ class _ChatsState extends State<Chats> {
     Map<String, String>? replyData
   }) async {
     try {
-      final uploadUrl = Uri.parse('https://webrtc.yohanes.dpdns.org/message/upload');
-      var request = http.MultipartRequest('PUT', uploadUrl)
-        ..files.add(await http.MultipartFile.fromPath('image', localPath));
+      final uploadUrl = Uri.parse("${dotenv.env['SOCKET_URL']}/images");
+      var request = http.MultipartRequest('POST', uploadUrl)
+        ..headers.addAll({
+          "Auth" : dotenv.env["AUTH"]!
+        })
+        ..files.add(await http.MultipartFile.fromPath('file', localPath));
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final responseData = jsonDecode(response.body);
-        final publicUrl = responseData['public_url'];
+        final publicUrl = "${dotenv.env['SOCKET_URL']}${responseData['url']}?Auth=${dotenv.env['AUTH']}";
 
         await _sendMessageToServer(
             text: caption,
@@ -203,17 +206,18 @@ class _ChatsState extends State<Chats> {
     if (textToSend.isEmpty && (mediaUrl == null || mediaUrl.isEmpty)) return;
     try {
       await dotenv.load(fileName: '.env');
-      await http.post(
-        Uri.parse("${dotenv.env['SOCKET_URL']}/message/send?auth=${dotenv.env['AUTH']}"),
-        headers: {"Content-Type": "application/json; charset=UTF-8"},
+      var res = await http.post(
+        Uri.parse("${dotenv.env['SOCKET_URL']}/message?Auth=${dotenv.env['AUTH']}"),
+        headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          "message": textToSend,
-          "message_media": mediaUrl ?? "",
-          "device_id": context.read<ContextService>().myDeviceId,
-          "reply_id": replyData?['id'] ?? "",
-          "reply_text": replyData?['text'] ?? "",
+          "content": textToSend,
+          "content_image": mediaUrl ?? "",
+          "receiver_id": context.read<ContextService>().myDeviceId,
+          "reply_to": replyData?['id'],
+          "reply_text": replyData?['text'] ,
         }),
       );
+      print("Success SEND : ${res.body}");
       await context.read<ContextService>().loadFromAPI();
     } catch (e) {
       print("Error sending message to server: $e");
@@ -616,7 +620,7 @@ class ChatBubble extends StatelessWidget {
             constraints: const BoxConstraints(maxHeight: 300),
             child: isLocalFile
                 ? Image.file(File(messageMedia!), fit: BoxFit.cover)
-                : Image.network("${messageMedia!}?auth=$authKey",
+                : Image.network(messageMedia!,
               fit: BoxFit.cover,
               loadingBuilder: (context, child, progress) => progress == null ? child : Container(height: 250, color: myBubbleColor, child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: themePrimaryColor))),
               errorBuilder: (context, error, stack) => Container(height: 250, color: Colors.grey.shade200, child: const Center(child: Icon(Icons.broken_image, color: Colors.grey))),

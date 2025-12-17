@@ -50,14 +50,16 @@ class ContextService extends ChangeNotifier {
   Future<void> loadFromAPI() async {
     await dotenv.load(fileName: ".env");
     try {
-      final res = await http.post(Uri.parse("${dotenv.env['SOCKET_URL']}/message?auth=${dotenv.env['AUTH']}"),
+      final res = await http.get(Uri.parse("${dotenv.env['SOCKET_URL']}/message?Auth=${dotenv.env['AUTH']}"),
           headers: {"Content-Type": "application/json; charset=UTF-8"},
-          body: jsonEncode({
-            "device_id" : myDeviceId ?? "xiaomi"
-          })
+          // body: jsonEncode({
+          //   "device_id" : myDeviceId ?? "xiaomi"
+          // })
       );
+          print("YOUR ALL DATA ${res.body.toString()}");
       if (res.statusCode == 200) {
-        final data = jsonDecode(res.body) as List;
+          final data = jsonDecode(res.body) as List;
+
         _chats.clear();
         _chats.addAll(data.map((e) => ChatMessage.fromJson(e, myDeviceId)));
         await _saveMessagesToStorage();
