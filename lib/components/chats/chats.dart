@@ -64,7 +64,7 @@ class _ChatsState extends State<Chats> {
     final targetChatIndex = chats.indexWhere((chat) => chat.id == messageId);
 
     if (targetChatIndex != -1) {
-      final scrollIndex = chats.length - 1 - targetChatIndex;
+      final scrollIndex = targetChatIndex;
       _highlightTimer?.cancel();
       _itemScrollController.scrollTo(
         index: scrollIndex,
@@ -301,8 +301,7 @@ class _ChatsState extends State<Chats> {
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               itemCount: chats.length,
               itemBuilder: (context, index) {
-                final reversedIndex = chats.length - 1 - index;
-                final chat = chats[reversedIndex];
+                final chat = chats[index];
                 return ChatBubble(
                   chatId: chat.id,
                   message: chat.messageText,
