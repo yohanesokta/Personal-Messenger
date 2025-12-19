@@ -1,82 +1,48 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:ui';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_background_service_android/flutter_background_service_android.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 const String _notificationChannelId = 'my_foreground_service';
-const String _fcmMessageKey = 'fcm_message';
 
-Future<String> getDeviceId() async {
-  final info = DeviceInfoPlugin();
-  final android = await info.androidInfo;
-  return android.model ?? 'unknown-device';
-}
-
+// This is the new entry point for the background service isolate.
+// Its purpose is simply to keep the service running.
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
+  // Ensure plugins are initialized in this isolate
   DartPluginRegistrant.ensureInitialized();
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  debugPrint("Persistent Background Service Started.");
 
   if (service is AndroidServiceInstance) {
-    service.setAsForegroundService();
+    service.on('setAsForeground').listen((event) {
+      service.setAsForegroundService();
+    });
+
+    service.on('setAsBackground').listen((event) {
+      service.setAsBackgroundService();
+    });
   }
-
-  final myDeviceId = await getDeviceId();
-  debugPrint("Background Service Started. My Device ID: $myDeviceId");
-
-  Timer.periodic(const Duration(seconds: 2), (timer) async {
-    final prefs = await SharedPreferences.getInstance();
-    final messageString = prefs.getString(_fcmMessageKey);
-
-    if (messageString != null) {
-      debugPrint("Background Service: Menemukan pesan baru di SharedPreferences!");
-
-      await prefs.remove(_fcmMessageKey);
-      final Map<String, dynamic> event = jsonDecode(messageString);
-      final String deviceIdFromServer = event['device_id'] ?? '';
-      final bool isSilent = event['silent'] == 'true';
-      if (isSilent) {
-        debugPrint("Silent message processed, not showing notification.");
-        return;
-      }
-      if (deviceIdFromServer != myDeviceId) {
-        flutterLocalNotificationsPlugin.show(
-          DateTime.now().millisecond,
-          event['title'] ?? 'Dari Kekasihmu ❤︎',
-          event['body'] ?? 'Kamu menerima pesan baru.',
-          const NotificationDetails(
-            android: AndroidNotificationDetails(
-              _notificationChannelId,
-              'Layanan Latar Belakang',
-              channelDescription: 'Channel ini digunakan untuk layanan latar belakang.',
-              priority: Priority.high,
-              importance: Importance.max,
-              icon: '@mipmap/ic_launcher',
-            ),
-          ),
-        );
-      }
-      service.invoke("mew_message");
-    }
-  });
+  
+  // The service can listen for custom events if needed in the future,
+  // for example, to manage a WebSocket connection.
+  // For now, it just runs.
 }
 
 Future<void> initializeService() async {
   final service = FlutterBackgroundService();
+
   await service.configure(
-    iosConfiguration: IosConfiguration(),
+    iosConfiguration: IosConfiguration(
+      // iOS configuration
+    ),
     androidConfiguration: AndroidConfiguration(
       onStart: onStart,
       isForegroundMode: true,
-      autoStart: false,
+      autoStart: true, // IMPORTANT: Auto-start the service
       notificationChannelId: _notificationChannelId,
-      initialNotificationTitle: 'Aplikasi Siaga',
-      initialNotificationContent: 'Menunggu pesan dari kekasihmu...',
+      initialNotificationTitle: 'Personal Messenger',
+      initialNotificationContent: 'Layanan berjalan untuk memastikan koneksi realtime.',
       foregroundServiceNotificationId: 888,
     ),
   );
